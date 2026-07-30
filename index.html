@@ -241,28 +241,31 @@
         let fullDailyPoints = [];
         let chartInstance = null;
 
-        // Automatyczne pobieranie ze Stooq przez CorsProxy
-        async function fetchStooqData() {
-            const targetUrl = 'https://stooq.pl/q/d/l/?s=4095.pl&i=d'; // Tiker dla Millennium Multistrategia SFIO kat. A
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+        /// Bezpieczne pobieranie wygenerowanego jsona z repozytorium
+async function fetchStooqData() {
+    try {
+        const response = await fetch('./data.json?cache_bust=' + new Date().getTime());
+        if (!response.ok) throw new Error("Brak pliku data.json");
+        
+        const parsed = await response.json();
 
-            try {
-                const response = await fetch(proxyUrl);
-                const csvText = await response.text();
-                
-                const lines = csvText.trim().split('\n');
-                const parsed = [];
+        if (parsed.length > 0) {
+            rawHistoryData = parsed;
+        } else {
+            throw new Error("Pusta tablica w data.json");
+        }
+    } catch (err) {
+        console.warn('Nie udało się wczytać data.json, użycie danych awaryjnych:', err);
+        rawHistoryData = [
+            {"date":"2018-01-02","nav":100.00},
+            {"date":"2021-01-04","nav":104.20},
+            {"date":"2024-01-02","nav":114.20},
+            {"date":"2026-07-30","nav":128.62}
+        ];
+    }
 
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',');
-                    if (cols.length >= 5) {
-                        const dateStr = cols[0].trim();
-                        const closeNav = parseFloat(cols[4].trim());
-                        if (dateStr && !isNaN(closeNav)) {
-                            parsed.push({ date: dateStr, nav: closeNav });
-                        }
-                    }
-                }
+    renderChart();
+}
 
                 if (parsed.length > 0) {
                     // Sortowanie chronologiczne
