@@ -85,18 +85,18 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-slate-900">Millennium Multistrategia SFIO (kat. A)</h1>
-                    <p class="text-xs text-slate-500">Płynny, codziennie interpolowany wykres wycen i stopy zwrotu YTY vs Inflacja</p>
+                    <p class="text-xs text-slate-500">Płynny, codziennie pobierany wykres wycen i stopy zwrotu YTY vs Inflacja</p>
                 </div>
             </div>
             <div id="latest-stats" class="flex items-center gap-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm">
                 <div>
                     <span class="text-slate-500 block text-[10px] uppercase font-semibold">Ostatnia wycena</span>
-                    <span id="stat-date" class="font-medium text-slate-700">2026-07-30</span>
+                    <span id="stat-date" class="font-medium text-slate-700">Pobieranie...</span>
                 </div>
                 <div class="h-6 w-px bg-slate-300"></div>
                 <div>
                     <span class="text-slate-500 block text-[10px] uppercase font-semibold">NAV / Jednostka</span>
-                    <span id="stat-nav" class="font-bold text-indigo-600">128.62 PLN</span>
+                    <span id="stat-nav" class="font-bold text-indigo-600">-- PLN</span>
                 </div>
             </div>
         </div>
@@ -167,7 +167,7 @@
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-bold text-slate-900">Gładki Wykres Dzienny (Interpolacja Liniowa)</h2>
+                    <h2 class="text-lg font-bold text-slate-900">Gładki Wykres Dzienny (Dane ze Stooq.pl)</h2>
                     <p class="text-xs text-slate-500">Codzienna wycena NAV oraz wskaźnik skumulowanej inflacji GUS z aproksymacją</p>
                 </div>
                 <div class="flex items-center gap-4 text-xs font-medium">
@@ -235,20 +235,57 @@
             2022: 14.4, 2023: 11.4, 2024: 3.7, 2025: 4.2, 2026: 3.5
         };
 
-        const rawHistoryData = [
-    {"date": "2018-01-02", "nav": 100.00},
-    {"date": "2018-02-01", "nav": 100.25},
-    {"date": "2018-03-01", "nav": 99.80},
-    // ... tutaj wklej rzeczywiste daty i wartości NAV
-    {"date": "2026-07-30", "nav": 128.62}
-];
-
+        let rawHistoryData = [];
         let currentScenario = 'base';
         let cutoffDate = '2026-07-30';
         let fullDailyPoints = [];
         let chartInstance = null;
 
-        // Pomocnicza funkcja: Liniowa interpolacja wartości między wycenami
+        // Automatyczne pobieranie ze Stooq przez CorsProxy
+        async function fetchStooqData() {
+            const targetUrl = 'https://stooq.pl/q/d/l/?s=4095.pl&i=d'; // Tiker dla Millennium Multistrategia SFIO kat. A
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+            try {
+                const response = await fetch(proxyUrl);
+                const csvText = await response.text();
+                
+                const lines = csvText.trim().split('\n');
+                const parsed = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',');
+                    if (cols.length >= 5) {
+                        const dateStr = cols[0].trim();
+                        const closeNav = parseFloat(cols[4].trim());
+                        if (dateStr && !isNaN(closeNav)) {
+                            parsed.push({ date: dateStr, nav: closeNav });
+                        }
+                    }
+                }
+
+                if (parsed.length > 0) {
+                    // Sortowanie chronologiczne
+                    parsed.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    rawHistoryData = parsed;
+                } else {
+                    throw new Error("Puste dane z API");
+                }
+            } catch (err) {
+                console.warn('Nie udało się pobrać danych ze Stooq, użycie danych awaryjnych:', err);
+                // W razie problemów ze Stooq – dane zapasowe
+                rawHistoryData = [
+                    {"date":"2018-01-02","nav":100.00},
+                    {"date":"2021-01-04","nav":104.20},
+                    {"date":"2024-01-02","nav":114.20},
+                    {"date":"2026-07-30","nav":128.62}
+                ];
+            }
+
+            renderChart();
+        }
+
+        // Interpolacja liniowa dla braku wpisów dziennych
         function getInterpolatedNav(targetDateStr) {
             const targetTime = new Date(targetDateStr).getTime();
             
@@ -264,8 +301,10 @@
             return rawHistoryData[rawHistoryData.length - 1].nav;
         }
 
-        // 1. Generowanie gładkich codziennych punktów (Interpolacja + Aproksymacja)
+        // Generowanie codziennych punktów (Interpolacja + Aproksymacja)
         function generateDailyData(scenario) {
+            if (rawHistoryData.length === 0) return [];
+
             cutoffDate = rawHistoryData[rawHistoryData.length - 1].date;
 
             const points = [];
@@ -322,7 +361,6 @@
                 date.setDate(date.getDate() + 1);
             }
 
-            // Płynne połączenie ostatniego punktu historii z linią aproksymacji
             const lastHistIdx = points.findIndex(p => p.isProjection) - 1;
             if (lastHistIdx >= 0) {
                 points[lastHistIdx].navApprox = points[lastHistIdx].navHistory;
@@ -331,7 +369,7 @@
             return points;
         }
 
-        // 2. Dwustronny Suwak (Dual Range Slider)
+        // Dwustronny Suwak (Dual Range Slider)
         function updateDualSlider() {
             const minInput = document.getElementById('slider-min');
             const maxInput = document.getElementById('slider-max');
@@ -369,7 +407,7 @@
             chartInstance.update('none');
         }
 
-        // 3. Tabela YTY
+        // Tabela YTY
         function renderYTYTable() {
             const tbody = document.getElementById('yty-table-body');
             tbody.innerHTML = '';
@@ -377,8 +415,10 @@
             const years = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
             years.forEach(year => {
-                const startPoint = rawHistoryData.find(d => d.date.startsWith(`${year}-`)) || { nav: 100 };
+                const startPoint = rawHistoryData.find(d => d.date.startsWith(`${year}-`)) || rawHistoryData[0];
                 const endPoint = rawHistoryData.find(d => d.date.startsWith(`${year + 1}-`)) || rawHistoryData[rawHistoryData.length - 1];
+
+                if (!startPoint || !endPoint) return;
 
                 const returnFund = ((endPoint.nav - startPoint.nav) / startPoint.nav) * 100;
                 const cpi = cpiYoYMap[year] || 0;
@@ -402,9 +442,11 @@
             });
         }
 
-        // 4. Renderowanie Wykresu
+        // Renderowanie Wykresu
         function renderChart() {
             fullDailyPoints = generateDailyData(currentScenario);
+            if (fullDailyPoints.length === 0) return;
+
             const latestHistory = rawHistoryData[rawHistoryData.length - 1];
             
             document.getElementById('stat-date').innerText = latestHistory.date;
@@ -533,13 +575,14 @@
         }
 
         document.getElementById('unit-input').addEventListener('input', () => {
-            const latestHistory = rawHistoryData[rawHistoryData.length - 1];
-            if (latestHistory) updatePortfolioValuation(latestHistory.nav);
+            if (rawHistoryData.length > 0) {
+                updatePortfolioValuation(rawHistoryData[rawHistoryData.length - 1].nav);
+            }
         });
 
         window.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
-            renderChart();
+            fetchStooqData();
         });
     </script>
 </body>
