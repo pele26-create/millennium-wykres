@@ -7,7 +7,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Chart.js + Luxon Adapter (Gwarantuje poprawne wyświetlanie osi czasu) -->
+    <!-- Chart.js + Luxon Adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
@@ -29,18 +29,18 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-slate-900">Millennium Multistrategia SFIO (kat. A)</h1>
-                    <p class="text-xs text-slate-500">Codzienna analiza wycen i realnej wartości inwestycji (dzienna interpolacja)</p>
+                    <p class="text-xs text-slate-500">Codzienna analiza wycen i realnej wartości inwestycji</p>
                 </div>
             </div>
             <div id="latest-stats" class="flex items-center gap-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm">
                 <div>
                     <span class="text-slate-500 block text-[10px] uppercase font-semibold">Ostatnia wycena</span>
-                    <span id="stat-date" class="font-medium text-slate-700">Ładowanie...</span>
+                    <span id="stat-date" class="font-medium text-slate-700">2026-07-30</span>
                 </div>
                 <div class="h-6 w-px bg-slate-300"></div>
                 <div>
                     <span class="text-slate-500 block text-[10px] uppercase font-semibold">NAV / Jednostka</span>
-                    <span id="stat-nav" class="font-bold text-indigo-600">-- PLN</span>
+                    <span id="stat-nav" class="font-bold text-indigo-600">128.62 PLN</span>
                 </div>
             </div>
         </div>
@@ -65,11 +65,11 @@
                 <div class="pt-2 border-t border-slate-100 space-y-2">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Wartość nominalna:</span>
-                        <span id="portfolio-nominal" class="font-bold text-slate-900">0 PLN</span>
+                        <span id="portfolio-nominal" class="font-bold text-slate-900">12,862.00 PLN</span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Wartość realna (vs 2018):</span>
-                        <span id="portfolio-real" class="font-semibold text-emerald-600">0 PLN</span>
+                        <span id="portfolio-real" class="font-semibold text-emerald-600">8,690.54 PLN</span>
                     </div>
                 </div>
             </div>
@@ -133,13 +133,8 @@
             2022: 14.4, 2023: 11.4, 2024: 3.7, 2025: 4.2, 2026: 3.5
         };
 
-        let currentScenario = 'base';
-        let rawHistoryData = [];
-        let cutoffDate = '2026-07-30';
-        let chartInstance = null;
-
-        // Awaryjny zestaw danych (gdyby data.json nie odpowiedział)
-        const fallbackData = [
+        // Wbudowana baza danych historycznych (odporna na błędy fetch/CORS)
+        const rawHistoryData = [
             {"date":"2018-01-02","nav":92.10},
             {"date":"2019-01-02","nav":93.80},
             {"date":"2020-01-02","nav":98.40},
@@ -152,23 +147,11 @@
             {"date":"2026-07-30","nav":128.62}
         ];
 
-        async function fetchLiveHistory() {
-            try {
-                const res = await fetch('data.json?t=' + Date.now());
-                if (!res.ok) throw new Error("Status " + res.status);
-                const json = await res.json();
-                return (json && json.length > 0) ? json : fallbackData;
-            } catch (e) {
-                console.warn("Wczytano awaryjny zestaw danych.", e);
-                return fallbackData;
-            }
-        }
+        let currentScenario = 'base';
+        let cutoffDate = '2026-07-30';
+        let chartInstance = null;
 
-        async function generateFullData(scenario) {
-            if (rawHistoryData.length === 0) {
-                rawHistoryData = await fetchLiveHistory();
-            }
-
+        function generateFullData(scenario) {
             const historyMap = {};
             rawHistoryData.forEach(d => historyMap[d.date] = d.nav);
 
@@ -226,13 +209,12 @@
             return points;
         }
 
-        async function renderChart() {
-            const points = await generateFullData(currentScenario);
+        function renderChart() {
+            const points = generateFullData(currentScenario);
+            const latestHistory = rawHistoryData[rawHistoryData.length - 1];
             
-            const latestHistory = rawHistoryData[rawHistoryData.length - 1] || { date: '2026-07-30', nav: 128.62 };
             document.getElementById('stat-date').innerText = latestHistory.date;
             document.getElementById('stat-nav').innerText = latestHistory.nav.toFixed(2) + ' PLN';
-
             updatePortfolioValuation(latestHistory.nav);
 
             const ctx = document.getElementById('mainChart').getContext('2d');
@@ -298,7 +280,7 @@
         function updatePortfolioValuation(currentNav) {
             const units = parseFloat(document.getElementById('unit-input').value) || 0;
             const nominal = units * currentNav;
-            const real = nominal / 1.48; // Przelicznik inflacyjny 2018-2026
+            const real = nominal / 1.48;
 
             document.getElementById('portfolio-nominal').innerText = nominal.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
             document.getElementById('portfolio-real').innerText = real.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
@@ -328,7 +310,7 @@
             chartInstance.update();
         }
 
-        document.getElementById('unit-input').addEventListener('input', () => {
+        document.getElementById('unit-input').addEventListener('input', (e) => {
             const latestHistory = rawHistoryData[rawHistoryData.length - 1];
             if (latestHistory) updatePortfolioValuation(latestHistory.nav);
         });
