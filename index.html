@@ -3,51 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Millennium Multistrategia SFIO — Historia i Prognoza (do 2028)</title>
+    <title>Millennium Multistrategia SFIO — Wycena Codzienna i Prognoza do 2028</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
 
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f1f5f9;
-            color: #1e293b;
-            padding: 20px;
-            margin: 0;
-        }
-        .container {
-            max-width: 980px;
-            margin: 0 auto;
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #1e293b; padding: 20px; margin: 0; }
+        .container { max-width: 980px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
         h1 { font-size: 1.4rem; color: #0f172a; margin-top: 0; }
         
-        .scenario-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 12px 18px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
+        .scenario-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
         .scenario-box label { font-weight: 600; font-size: 0.9rem; color: #475569; }
-        .scenario-box select {
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: 1px solid #cbd5e1;
-            font-weight: 600;
-            color: #0f172a;
-            background: white;
-            cursor: pointer;
-        }
+        .scenario-box select { padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a; background: white; cursor: pointer; }
 
         .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 25px; }
         
@@ -57,37 +26,11 @@
         .noUi-handle:before, .noUi-handle:after { display: none; }
         .date-labels { display: flex; justify-content: space-between; font-weight: 600; color: #2563eb; font-size: 0.95rem; margin-bottom: 12px; }
 
-        .units-input-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 12px 18px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .units-input-box input {
-            padding: 6px 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            width: 110px;
-            font-weight: bold;
-        }
+        .units-input-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        .units-input-box input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; width: 110px; font-weight: bold; }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-        }
-        .stat-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-top: 4px solid #2563eb;
-            padding: 14px;
-            border-radius: 8px;
-        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+        .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-top: 4px solid #2563eb; padding: 14px; border-radius: 8px; }
         .stat-card.cpi-card { border-top-color: #ef4444; }
         .stat-card.proj-card { border-top-color: #8b5cf6; }
         .stat-title { font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; }
@@ -95,7 +38,6 @@
         .stat-value.pos { color: #16a34a; }
         .stat-value.neg { color: #dc2626; }
 
-        /* Tabela YoY */
         h2 { font-size: 1.1rem; color: #334155; margin-top: 35px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
@@ -107,10 +49,10 @@
 <body>
 
 <div class="container">
-    <h1>Millennium Multistrategia SFIO — Historia i Prognoza (do 2028)</h1>
+    <h1>Millennium Multistrategia SFIO — Wycena Codzienna i Prognoza (do 2028)</h1>
 
     <div class="scenario-box">
-        <label for="scenarioSelect">Scenariusz aproksymacji (2026–2028):</label>
+        <label for="scenarioSelect">Scenariusz aproksymacji (od dzisiaj do 2028):</label>
         <select id="scenarioSelect">
             <option value="base" selected>Bazowy (Stopy ~4%, Fundusz +5.8%/r, CPI +3.2%/r)</option>
             <option value="optimistic">Optymistyczny (Hossa, Fundusz +8.5%/r, CPI +2.8%/r)</option>
@@ -133,7 +75,7 @@
     <div class="units-input-box">
         <label for="unitsCount">Liczba jednostek:</label>
         <input type="number" id="unitsCount" value="100" min="0.0001" step="any">
-        <span style="font-size:0.85rem; color:#64748b;">(Wartość majątku przelicza się automatycznie)</span>
+        <span style="font-size:0.85rem; color:#64748b;">(Automatyczne wyliczenie majątku dziennego)</span>
     </div>
 
     <div class="stats-grid">
@@ -173,9 +115,7 @@
                 <th>Inflacja (GUS YoY)</th>
             </tr>
         </thead>
-        <tbody id="yoyTableBody">
-            <!-- Wypełniane w JS -->
-        </tbody>
+        <tbody id="yoyTableBody"></tbody>
     </table>
 </div>
 
@@ -185,28 +125,33 @@
         '2022': 14.4, '2023': 11.4, '2024': 3.7, '2025': 4.5
     };
 
-    const cutoffDate = "2026-07-01"; // Przejście z historii do prognozy
+    let cutoffDate = new Date().toISOString().split('T')[0];
 
-    async function fetchLiveLatestNav() {
+    async function fetchLiveHistory() {
         try {
             const res = await fetch('data.json');
             const data = await res.json();
-            if (data && data.length > 0) {
-                return data[data.length - 1].nav;
-            }
+            if (data && data.length > 0) return data;
         } catch(e) {
-            console.log("Używam wbudowanych danych historycznych");
+            console.log("Brak pliku data.json");
         }
-        return 128.10;
+        return [];
     }
 
     async function generateFullData(scenario) {
-        const latestNav = await fetchLiveLatestNav();
+        const liveHistory = await fetchLiveHistory();
+        const historyMap = {};
+        liveHistory.forEach(d => historyMap[d.date] = d.nav);
+
+        if (liveHistory.length > 0) {
+            cutoffDate = liveHistory[liveHistory.length - 1].date;
+        }
+
         const data = [];
-        let date = new Date(2018, 0, 5);
+        let date = new Date(2018, 0, 1);
         const endDate = new Date(2028, 11, 31);
-        
-        let currentNav = 92.00;
+
+        let currentNav = liveHistory.length > 0 ? liveHistory[0].nav : 92.00;
         let cpiIndex = 100.0;
 
         let fundAnnualReturn = 0.058;
@@ -220,8 +165,8 @@
             projAnnualCpi = 0.045;
         }
 
-        const projWeeklyDrift = Math.pow(1 + fundAnnualReturn, 1/52) - 1;
-        const projWeeklyCpi = Math.pow(1 + projAnnualCpi, 1/52) - 1;
+        const projDailyDrift = Math.pow(1 + fundAnnualReturn, 1/365) - 1;
+        const projDailyCpi = Math.pow(1 + projAnnualCpi, 1/365) - 1;
 
         while (date <= endDate) {
             const dateStr = date.toISOString().split('T')[0];
@@ -229,41 +174,30 @@
             const isProjection = dateStr > cutoffDate;
 
             if (!isProjection) {
-                let weeklyDrift = 0;
-                if (year === 2018) weeklyDrift = -0.0008;
-                else if (year === 2019) weeklyDrift = 0.0009;
-                else if (year === 2020) weeklyDrift = 0.0010;
-                else if (year === 2021) weeklyDrift = 0.0012;
-                else if (year === 2022) weeklyDrift = -0.0015;
-                else if (year === 2023) weeklyDrift = 0.0024;
-                else if (year === 2024) weeklyDrift = 0.0016;
-                else weeklyDrift = 0.0013;
-
-                const noise = (Math.random() - 0.48) * 0.006;
-                currentNav = currentNav * (1 + weeklyDrift + noise);
+                if (historyMap[dateStr]) {
+                    currentNav = historyMap[dateStr];
+                }
 
                 const annualCpi = cpiYoYMap[year] || 4.0;
-                const weeklyCpiRate = Math.pow(1 + annualCpi / 100, 1 / 52) - 1;
-                cpiIndex = cpiIndex * (1 + weeklyCpiRate);
+                const dailyCpiRate = Math.pow(1 + annualCpi / 100, 1 / 365) - 1;
+                cpiIndex = cpiIndex * (1 + dailyCpiRate);
             } else {
-                currentNav = currentNav * (1 + projWeeklyDrift);
-                cpiIndex = cpiIndex * (1 + projWeeklyCpi);
+                currentNav = currentNav * (1 + projDailyDrift);
+                cpiIndex = cpiIndex * (1 + projDailyCpi);
             }
 
-            data.push({
-                date: dateStr,
-                nav: parseFloat(currentNav.toFixed(2)),
-                cpiIndex: parseFloat(cpiIndex.toFixed(3)),
-                isProjection: isProjection
-            });
+            // Dodajemy tylko dni tygodnia (pon-pt) dla estetyki giełdowej
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                data.push({
+                    date: dateStr,
+                    nav: parseFloat(currentNav.toFixed(2)),
+                    cpiIndex: parseFloat(cpiIndex.toFixed(3)),
+                    isProjection: isProjection
+                });
+            }
 
-            date.setDate(date.getDate() + 7);
-        }
-
-        // Podpinamy najświeższą wycenę z autoupdate na koniec okresu historycznego
-        const cutoffIdx = data.findIndex(d => d.date >= cutoffDate);
-        if (cutoffIdx !== -1 && latestNav) {
-            data[cutoffIdx].nav = latestNav;
+            date.setDate(date.getDate() + 1); // KROK CODZIENNY
         }
 
         return data;
@@ -352,7 +286,7 @@
                     label: 'Millennium Multistrategia (PLN)',
                     data: [],
                     borderColor: '#2563eb',
-                    borderWidth: 2.5,
+                    borderWidth: 2,
                     pointRadius: 0,
                     segment: {
                         borderDash: ctx => ctx.p0.raw.isProj ? [5, 5] : undefined,
@@ -363,7 +297,7 @@
                     label: 'Skumulowana Inflacja (GUS)',
                     data: [],
                     borderColor: '#ef4444',
-                    borderWidth: 2,
+                    borderWidth: 1.8,
                     pointRadius: 0,
                     segment: {
                         borderDash: ctx => ctx.p0.raw.isProj ? [3, 3] : [5, 5],
