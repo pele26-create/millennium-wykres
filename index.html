@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Millennium SFIO — Live Auto-Update</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #1e293b; padding: 15px; margin: 0; }
+        .container { max-width: 950px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+        h1 { font-size: 1.3rem; color: #0f172a; margin-top: 0; }
+        .chart-container { position: relative; height: 360px; width: 100%; margin-bottom: 20px; }
+        .slider-box { padding: 0 10px; margin-bottom: 25px; }
+        .noUi-connect { background: #2563eb; }
+        .noUi-handle { border-radius: 50%; background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: grab; }
+        .noUi-handle:before, .noUi-handle:after { display: none; }
+        .date-labels { display: flex; justify-content: space-between; font-weight: 600; color: #2563eb; font-size: 0.9rem; margin-bottom: 10px; }
+        .units-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+        .units-box input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; width: 110px; font-weight: bold; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-top: 4px solid #2563eb; padding: 12px; border-radius: 8px; }
+        .stat-card.cpi { border-top-color: #ef4444; }
+        .stat-card.real { border-top-color: #10b981; }
+        .stat-title { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; }
+        .stat-value { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-top: 4px; }
+        .stat-value.pos { color: #16a34a; }
+        .stat-value.neg { color: #dc2626; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Millennium Multistrategia SFIO kat. A (Live Auto-Update)</h1>
+
+    <div class="chart-container">
+        <canvas id="navChart"></canvas>
+    </div>
+
+    <div class="slider-box">
+        <div class="date-labels">
+            <span>Od: <span id="startDateLabel">--</span></span>
+            <span>Do: <span id="endDateLabel">--</span></span>
+        </div>
+        <div id="rangeSlider"></div>
+    </div>
+
+    <div class="units-box">
+        <label for="unitsCount">Liczba jednostek:</label>
+        <input type="number" id="unitsCount" value="100" min="0.0001" step="any">
+        <span style="font-size:0.8rem; color:#64748b;">(Automatyczne przeliczenie Twojego portfela)</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-title">Stopa Nominalna</div>
+            <div class="stat-value" id="returnVal">0,00%</div>
+        </div>
+        <div class="stat-card cpi">
+            <div class="stat-title">Inflacja (GUS)</div>
+            <div class="stat-value" id="cpiVal">0,00%</div>
+        </div>
+        <div class="stat-card real">
+            <div class="stat-title">Stopa Realna</div>
+            <div class="stat-value" id="realReturnVal">0,00%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Start okresu</div>
+            <div class="stat-value" id="initialVal">0 zł</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Koniec okresu</div>
+            <div class="stat-value" id="finalVal">0 zł</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Wynik kwotowy</div>
+            <div class="stat-value" id="profitVal">0 zł</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function initApp() {
+        let rawData = [];
+        try {
+            const res = await fetch('data.json');
+            rawData = await res.json();
+        } catch(e) {
+            console.log("Brak danych live, wczytuję dane awaryjne");
+        }
+
+        if(!rawData || rawData.length === 0) return;
+
+        const ctx = document.getElementById('navChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Wartość jednostki (PLN)',
+                    data: [],
+                    borderColor: '#2563eb',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f5f9' } } }
+            }
+        });
+
+        const slider = document.getElementById('rangeSlider');
+        noUiSlider.create(slider, {
+            start: [0, rawData.length - 1],
+            connect: true,
+            step: 1,
+            range: { 'min': 0, 'max': rawData.length - 1 }
+        });
+
+        const unitsInput = document.getElementById('unitsCount');
+
+        function update() {
+            const values = slider.noUiSlider.get();
+            const sIdx = Math.round(values[0]);
+            const eIdx = Math.round(values[1]);
+
+            const sItem = rawData[sIdx];
+            const eItem = rawData[eIdx];
+
+            document.getElementById('startDateLabel').innerText = sItem.date;
+            document.getElementById('endDateLabel').innerText = eItem.date;
+
+            const slice = rawData.slice(sIdx, eIdx + 1);
+            chart.data.labels = slice.map(d => d.date);
+            chart.data.datasets[0].data = slice.map(d => d.nav);
+            chart.update('none');
+
+            const units = parseFloat(unitsInput.value) || 0;
+            const initVal = units * sItem.nav;
+            const finVal = units * eItem.nav;
+            const profit = finVal - initVal;
+            const nomReturn = ((eItem.nav - sItem.nav) / sItem.nav) * 100;
+
+            const retEl = document.getElementById('returnVal');
+            retEl.innerText = (nomReturn >= 0 ? "+" : "") + nomReturn.toFixed(2) + "%";
+            retEl.className = "stat-value " + (nomReturn >= 0 ? "pos" : "neg");
+
+            document.getElementById('initialVal').innerText = Math.round(initVal).toLocaleString("pl-PL") + " zł";
+            document.getElementById('finalVal').innerText = Math.round(finVal).toLocaleString("pl-PL") + " zł";
+            
+            const profEl = document.getElementById('profitVal');
+            profEl.innerText = (profit >= 0 ? "+" : "") + Math.round(profit).toLocaleString("pl-PL") + " zł";
+            profEl.className = "stat-value " + (profit >= 0 ? "pos" : "neg");
+        }
+
+        slider.noUiSlider.on('update', update);
+        unitsInput.addEventListener('input', update);
+        update();
+    }
+
+    initApp();
+</script>
+
+</body>
+</html>
