@@ -1,64 +1,356 @@
-async function generateFullData(scenario) {
-        const liveHistory = await fetchLiveHistory();
-        const historyMap = {};
-        liveHistory.forEach(d => historyMap[d.date] = d.nav);
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiza Wycen - Millennium Multistrategia SFIO kat. A</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js + Moment Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
-        let lastKnownNav = liveHistory.length > 0 ? liveHistory[0].nav : 92.00;
-        if (liveHistory.length > 0) {
-            cutoffDate = liveHistory[liveHistory.length - 1].date;
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900">Millennium Multistrategia SFIO (kat. A)</h1>
+                    <p class="text-xs text-slate-500">Codzienna analiza stóp zwrotu i realnej wartości inwestycji z inflacją GUS</p>
+                </div>
+            </div>
+            <div id="latest-stats" class="flex items-center gap-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm">
+                <div>
+                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">Ostatnia wycena</span>
+                    <span id="stat-date" class="font-medium text-slate-700">Ładowanie...</span>
+                </div>
+                <div class="h-6 w-px bg-slate-300"></div>
+                <div>
+                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">NAV / Jednostka</span>
+                    <span id="stat-nav" class="font-bold text-indigo-600">-- PLN</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Controls / Portfel Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Kalkulator Portfela -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h2 class="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="wallet" class="w-4 h-4 text-indigo-600"></i> Twój Portfel
+                </h2>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Liczba posiadanych jednostek</label>
+                    <input type="number" id="unit-input" value="100" min="0" step="any" 
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 font-medium">
+                </div>
+                <div class="pt-2 border-t border-slate-100 space-y-2">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Wartość nominalna:</span>
+                        <span id="portfolio-nominal" class="font-bold text-slate-900">0 PLN</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Wartość realna (vs 2018):</span>
+                        <span id="portfolio-real" class="font-semibold text-emerald-600">0 PLN</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenariusz / Opcje -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        <i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i> Scenariusz Prognozy Przyszłości
+                    </h2>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="setScenario('pessimistic')" id="btn-pessimistic" class="scenario-btn p-3 rounded-xl border text-left transition-all hover:border-slate-300">
+                            <div class="text-xs font-semibold text-amber-700">Pesymistyczny</div>
+                            <div class="text-[11px] text-slate-500">Fundusz: +2.5%/r | Inflacja: 4.5%</div>
+                        </button>
+                        <button onclick="setScenario('base')" id="btn-base" class="scenario-btn p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-left transition-all">
+                            <div class="text-xs font-bold text-indigo-900">Bazowy</div>
+                            <div class="text-[11px] text-slate-600">Fundusz: +5.8%/r | Inflacja: 3.2%</div>
+                        </button>
+                        <button onclick="setScenario('optimistic')" id="btn-optimistic" class="scenario-btn p-3 rounded-xl border text-left transition-all hover:border-slate-300">
+                            <div class="text-xs font-semibold text-emerald-700">Optymistyczny</div>
+                            <div class="text-[11px] text-slate-500">Fundusz: +8.5%/r | Inflacja: 2.8%</div>
+                        </button>
+                    </div>
+                </div>
+                <!-- Quick Filter Buttons -->
+                <div class="flex items-center gap-2 pt-3 border-t border-slate-100 overflow-x-auto">
+                    <span class="text-xs text-slate-400 font-medium">Zakres:</span>
+                    <button onclick="setTimeRange('1Y')" class="px-2.5 py-1 text-xs rounded-md border bg-white hover:bg-slate-50 text-slate-600">1 Rok</button>
+                    <button onclick="setTimeRange('3Y')" class="px-2.5 py-1 text-xs rounded-md border bg-white hover:bg-slate-50 text-slate-600">3 Lata</button>
+
+                    <button onclick="setTimeRange('ALL')" class="px-2.5 py-1 text-xs rounded-md border bg-slate-900 text-white">Pełny (z prognozą)</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Chart Section -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Wycena Jednostki i Indeks Realnej Wartości</h2>
+                    <p class="text-xs text-slate-500">Porównanie stóp zwrotu w rozdzielczości dziennej z uwzględnieniem skumulowanej inflacji</p>
+                </div>
+                <div class="flex items-center gap-4 text-xs font-medium">
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span> Wycena NAV</div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Skumulowany Skok CPI (GUS)</div>
+                </div>
+            </div>
+            
+            <div class="relative w-full h-[450px]">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- App Logic -->
+    <script>
+        // Roczne dane wskaźnika inflacji GUS (YoY)
+        const cpiYoYMap = {
+            2018: 1.6, 2019: 2.3, 2020: 3.4, 2021: 5.1,
+            2022: 14.4, 2023: 11.4, 2024: 3.7, 2025: 4.2, 2026: 3.5
+        };
+
+        let currentScenario = 'base';
+        let rawHistoryData = [];
+        let cutoffDate = '2026-07-30';
+        let chartInstance = null;
+
+        // 1. Pobieranie pliku data.json
+        async function fetchLiveHistory() {
+            try {
+                const res = await fetch('data.json?cache=' + Date.now());
+                if (!res.ok) throw new Error("HTTP error " + res.status);
+                const json = await res.json();
+                return json;
+            } catch (e) {
+                console.warn("Błąd ładowania data.json, stosuję rezerwowy zestaw danych.", e);
+                return [
+                    {"date": "2018-01-02", "nav": 92.10},
+                    {"date": "2020-01-02", "nav": 98.40},
+                    {"date": "2022-01-03", "nav": 110.80},
+                    {"date": "2024-01-02", "nav": 114.20},
+                    {"date": "2026-01-02", "nav": 125.40},
+                    {"date": "2026-07-30", "nav": 128.62}
+                ];
+            }
         }
 
-        const data = [];
-        let date = new Date(2018, 0, 1);
-        const endDate = new Date(2028, 11, 31);
-        let cpiIndex = 100.0;
+        // 2. Generowanie ciągłych, dziennych danych (poniedziałek-piątek)
+        async function generateFullData(scenario) {
+            if (rawHistoryData.length === 0) {
+                rawHistoryData = await fetchLiveHistory();
+            }
 
-        let fundAnnualReturn = 0.058;
-        let projAnnualCpi = 0.032;
+            const historyMap = {};
+            rawHistoryData.forEach(d => historyMap[d.date] = d.nav);
 
-        if (scenario === 'optimistic') {
-            fundAnnualReturn = 0.085;
-            projAnnualCpi = 0.028;
-        } else if (scenario === 'pessimistic') {
-            fundAnnualReturn = 0.025;
-            projAnnualCpi = 0.045;
-        }
+            let lastKnownNav = rawHistoryData.length > 0 ? rawHistoryData[0].nav : 92.00;
+            if (rawHistoryData.length > 0) {
+                cutoffDate = rawHistoryData[rawHistoryData.length - 1].date;
+            }
 
-        const projDailyDrift = Math.pow(1 + fundAnnualReturn, 1/365) - 1;
-        const projDailyCpi = Math.pow(1 + projAnnualCpi, 1/365) - 1;
+            const data = [];
+            let date = new Date(2018, 0, 1);
+            const endDate = new Date(2028, 11, 31);
+            let cpiIndex = 100.0;
 
-        while (date <= endDate) {
-            const dateStr = date.toISOString().split('T')[0];
-            const year = date.getFullYear();
-            const isProjection = dateStr > cutoffDate;
+            let fundAnnualReturn = 0.058;
+            let projAnnualCpi = 0.032;
 
-            if (!isProjection) {
-                // Jeśli jest wycena w danym dniu – bierzemy ją. Jeśli nie – utrzymujemy ostatnią znaną (interpolacja dzienna)
-                if (historyMap[dateStr]) {
-                    lastKnownNav = historyMap[dateStr];
+            if (scenario === 'optimistic') {
+                fundAnnualReturn = 0.085;
+                projAnnualCpi = 0.028;
+            } else if (scenario === 'pessimistic') {
+                fundAnnualReturn = 0.025;
+                projAnnualCpi = 0.045;
+            }
+
+            const projDailyDrift = Math.pow(1 + fundAnnualReturn, 1/365) - 1;
+            const projDailyCpi = Math.pow(1 + projAnnualCpi, 1/365) - 1;
+
+            while (date <= endDate) {
+                const dateStr = date.toISOString().split('T')[0];
+                const year = date.getFullYear();
+                const isProjection = dateStr > cutoffDate;
+
+                if (!isProjection) {
+                    if (historyMap[dateStr]) {
+                        lastKnownNav = historyMap[dateStr];
+                    }
+                    const annualCpi = cpiYoYMap[year] || 3.5;
+                    const dailyCpiRate = Math.pow(1 + annualCpi / 100, 1 / 365) - 1;
+                    cpiIndex = cpiIndex * (1 + dailyCpiRate);
+                } else {
+                    lastKnownNav = lastKnownNav * (1 + projDailyDrift);
+                    cpiIndex = cpiIndex * (1 + projDailyCpi);
                 }
 
-                const annualCpi = cpiYoYMap[year] || 4.0;
-                const dailyCpiRate = Math.pow(1 + annualCpi / 100, 1 / 365) - 1;
-                cpiIndex = cpiIndex * (1 + dailyCpiRate);
-            } else {
-                lastKnownNav = lastKnownNav * (1 + projDailyDrift);
-                cpiIndex = cpiIndex * (1 + projDailyCpi);
+                const dayOfWeek = date.getDay();
+                // Pokazujemy tylko dni robocze dla giełdy
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    data.push({
+                        date: dateStr,
+                        nav: parseFloat(lastKnownNav.toFixed(2)),
+                        cpiIndex: parseFloat(cpiIndex.toFixed(2)),
+                        isProjection: isProjection
+                    });
+                }
+
+                date.setDate(date.getDate() + 1);
             }
 
-            const dayOfWeek = date.getDay();
-            // Zapisujemy dni robocze (pon-pt) dla codziennego wykresu giełdowego
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                data.push({
-                    date: dateStr,
-                    nav: parseFloat(lastKnownNav.toFixed(2)),
-                    cpiIndex: parseFloat(cpiIndex.toFixed(3)),
-                    isProjection: isProjection
-                });
-            }
-
-            date.setDate(date.getDate() + 1); // Przeskok codzienny!
+            return data;
         }
 
-        return data;
-    }
+        // 3. Inicjalizacja Wykresu
+        async function renderChart() {
+            const dataset = await generateFullData(currentScenario);
+            
+            // Zaktualizuj nagłówek statystyk
+            const latestHistory = rawHistoryData[rawHistoryData.length - 1] || dataset[0];
+            document.getElementById('stat-date').innerText = latestHistory.date;
+            document.getElementById('stat-nav').innerText = latestHistory.nav.toFixed(2) + ' PLN';
+
+            updatePortfolioValuation(latestHistory.nav);
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            
+            const labels = dataset.map(d => d.date);
+            const navValues = dataset.map(d => d.nav);
+            const cpiValues = dataset.map(d => d.cpiIndex);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'NAV (Wycena jednostki w PLN)',
+                            data: navValues,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.04)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Indeks Inflacji GUS (Baza 2018=100)',
+                            data: cpiValues,
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' PLN';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'month', displayFormats: { month: 'MMM YYYY' } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            grid: { color: '#f1f5f9' },
+                            ticks: { callback: value => value + ' PLN' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 4. Kalkulator Portfela
+        function updatePortfolioValuation(currentNav) {
+            const units = parseFloat(document.getElementById('unit-input').value) || 0;
+            const nominal = units * currentNav;
+            
+            // Przybliżony skumulowany wskaźnik inflacji od 2018 (ok. 1.48)
+            const real = nominal / 1.48;
+
+            document.getElementById('portfolio-nominal').innerText = nominal.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+            document.getElementById('portfolio-real').innerText = real.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+        }
+
+        // 5. Zmiana Scenariuszy
+        function setScenario(scen) {
+            currentScenario = scen;
+            document.querySelectorAll('.scenario-btn').forEach(b => {
+                b.classList.remove('border-2', 'border-indigo-600', 'bg-indigo-50/50');
+            });
+            document.getElementById('btn-' + scen).classList.add('border-2', 'border-indigo-600', 'bg-indigo-50/50');
+            renderChart();
+        }
+
+        function setTimeRange(range) {
+            if (!chartInstance) return;
+            const now = new Date(cutoffDate);
+            let minDate = new Date(2018, 0, 1);
+
+            if (range === '1Y') {
+                minDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            } else if (range === '3Y') {
+                minDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+            }
+
+            chartInstance.options.scales.x.min = minDate.toISOString().split('T')[0];
+            chartInstance.update();
+        }
+
+        // Eventy
+        document.getElementById('unit-input').addEventListener('input', () => {
+            const latestHistory = rawHistoryData[rawHistoryData.length - 1];
+            if (latestHistory) updatePortfolioValuation(latestHistory.nav);
+        });
+
+        // Start
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderChart();
+        });
+    </script>
+</body>
+</html>
