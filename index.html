@@ -16,7 +16,62 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        input[type=range] { width: 100%; accent-color: #4f46e5; }
+        
+        /* Styl dwustronnego suwaka (Dual Range Slider) */
+        .range-slider-container {
+            position: relative;
+            height: 30px;
+        }
+        .range-slider-container input[type=range] {
+            position: absolute;
+            pointer-events: none;
+            -webkit-appearance: none;
+            z-index: 2;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            margin: 0;
+        }
+        .range-slider-container input[type=range]::-webkit-slider-thumb {
+            pointer-events: all;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+        .slider-track {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 6px;
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        .slider-range {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 6px;
+            background-color: #4f46e5;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        .thumb-indicator {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background-color: #ffffff;
+            border: 3px solid #4f46e5;
+            border-radius: 50%;
+            z-index: 2;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
@@ -30,7 +85,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-slate-900">Millennium Multistrategia SFIO (kat. A)</h1>
-                    <p class="text-xs text-slate-500">Codzienna analiza wycen, aproksymacje i stopy zwrotu YTY vs Inflacja GUS</p>
+                    <p class="text-xs text-slate-500">Płynny, codziennie interpolowany wykres wycen i stopy zwrotu YTY vs Inflacja</p>
                 </div>
             </div>
             <div id="latest-stats" class="flex items-center gap-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm">
@@ -108,16 +163,16 @@
 
         </div>
 
-        <!-- Section: Wykres i Suwak Rozdzielczości Dziennej -->
+        <!-- Section: Wykres i Dwustronny Suwak Rozdzielczości Dziennej -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-bold text-slate-900">Wykres Wycen w Rozdzielczości Dziennej</h2>
-                    <p class="text-xs text-slate-500">Historia wycen NAV oraz zmiana wskaźnika inflacji GUS z aproksymacją</p>
+                    <h2 class="text-lg font-bold text-slate-900">Gładki Wykres Dzienny (Interpolacja Liniowa)</h2>
+                    <p class="text-xs text-slate-500">Codzienna wycena NAV oraz wskaźnik skumulowanej inflacji GUS z aproksymacją</p>
                 </div>
                 <div class="flex items-center gap-4 text-xs font-medium">
                     <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span> Historia NAV</div>
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Aproksymacja (Prognoza)</div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Aproksymacja</div>
                     <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Inflacja GUS</div>
                 </div>
             </div>
@@ -126,13 +181,21 @@
                 <canvas id="mainChart"></canvas>
             </div>
 
-            <!-- Suwak Zakresu Czasu -->
+            <!-- Dwustronny Suwak Zakresu Czasu -->
             <div class="pt-4 border-t border-slate-100 space-y-2">
-                <div class="flex justify-between text-xs text-slate-500 font-medium">
-                    <span>Suwak zakresu dat wycieczki: <strong id="slider-start-label" class="text-slate-800">2018-01-02</strong></span>
-                    <span id="slider-end-label" class="text-slate-800">2027-12-31</span>
+                <div class="flex justify-between text-xs font-semibold text-slate-700">
+                    <span>Od: <strong id="slider-start-label" class="text-indigo-600">2018-01-02</strong></span>
+                    <span>Do: <strong id="slider-end-label" class="text-indigo-600">2027-12-31</strong></span>
                 </div>
-                <input type="range" id="time-slider" min="0" max="100" value="0" step="1" oninput="handleSliderChange(this.value)">
+                
+                <div class="range-slider-container">
+                    <div class="slider-track"></div>
+                    <div class="slider-range" id="slider-range-fill"></div>
+                    <div class="thumb-indicator" id="thumb-min-ind"></div>
+                    <div class="thumb-indicator" id="thumb-max-ind"></div>
+                    <input type="range" id="slider-min" min="0" max="100" value="0" step="0.1" oninput="updateDualSlider()">
+                    <input type="range" id="slider-max" min="0" max="100" value="100" step="0.1" oninput="updateDualSlider()">
+                </div>
             </div>
         </div>
 
@@ -158,7 +221,6 @@
                         </tr>
                     </thead>
                     <tbody id="yty-table-body" class="divide-y divide-slate-100 text-slate-700">
-                        <!-- Tabela generowana dynamicznie -->
                     </tbody>
                 </table>
             </div>
@@ -201,12 +263,24 @@
         let fullDailyPoints = [];
         let chartInstance = null;
 
-        // 1. Generowanie danych o rozdzielczości dziennej z aproksymacją
-        function generateDailyData(scenario) {
-            const historyMap = {};
-            rawHistoryData.forEach(d => historyMap[d.date] = d.nav);
+        // Pomocnicza funkcja: Liniowa interpolacja wartości między wycenami
+        function getInterpolatedNav(targetDateStr) {
+            const targetTime = new Date(targetDateStr).getTime();
+            
+            for (let i = 0; i < rawHistoryData.length - 1; i++) {
+                const t1 = new Date(rawHistoryData[i].date).getTime();
+                const t2 = new Date(rawHistoryData[i+1].date).getTime();
+                
+                if (targetTime >= t1 && targetTime <= t2) {
+                    const factor = (targetTime - t1) / (t2 - t1);
+                    return rawHistoryData[i].nav + factor * (rawHistoryData[i+1].nav - rawHistoryData[i].nav);
+                }
+            }
+            return rawHistoryData[rawHistoryData.length - 1].nav;
+        }
 
-            let lastKnownNav = rawHistoryData[0].nav;
+        // 1. Generowanie gładkich codziennych punktów (Interpolacja + Aproksymacja)
+        function generateDailyData(scenario) {
             cutoffDate = rawHistoryData[rawHistoryData.length - 1].date;
 
             const points = [];
@@ -228,20 +302,24 @@
             const projDailyDrift = Math.pow(1 + fundAnnualReturn, 1/365) - 1;
             const projDailyCpi = Math.pow(1 + projAnnualCpi, 1/365) - 1;
 
+            let lastApproxNav = rawHistoryData[rawHistoryData.length - 1].nav;
+
             while (date <= endDate) {
                 const dateStr = date.toISOString().split('T')[0];
                 const year = date.getFullYear();
                 const isProjection = dateStr > cutoffDate;
 
+                let navHistoryVal = null;
+                let navApproxVal = null;
+
                 if (!isProjection) {
-                    if (historyMap[dateStr]) {
-                        lastKnownNav = historyMap[dateStr];
-                    }
+                    navHistoryVal = parseFloat(getInterpolatedNav(dateStr).toFixed(2));
                     const annualCpi = cpiYoYMap[year] || 3.5;
                     const dailyCpiRate = Math.pow(1 + annualCpi / 100, 1 / 365) - 1;
                     cpiIndex = cpiIndex * (1 + dailyCpiRate);
                 } else {
-                    lastKnownNav = lastKnownNav * (1 + projDailyDrift);
+                    lastApproxNav = lastApproxNav * (1 + projDailyDrift);
+                    navApproxVal = parseFloat(lastApproxNav.toFixed(2));
                     cpiIndex = cpiIndex * (1 + projDailyCpi);
                 }
 
@@ -249,8 +327,8 @@
                 if (dayOfWeek !== 0 && dayOfWeek !== 6) {
                     points.push({
                         x: dateStr,
-                        navHistory: !isProjection ? parseFloat(lastKnownNav.toFixed(2)) : null,
-                        navApprox: isProjection ? parseFloat(lastKnownNav.toFixed(2)) : null,
+                        navHistory: navHistoryVal,
+                        navApprox: navApproxVal,
                         cpi: parseFloat(cpiIndex.toFixed(2)),
                         isProjection: isProjection
                     });
@@ -259,16 +337,54 @@
                 date.setDate(date.getDate() + 1);
             }
 
-            // Łącznik punktu historii z aproksymacją
-            const lastHistoryIdx = points.findIndex(p => p.isProjection) - 1;
-            if (lastHistoryIdx >= 0) {
-                points[lastHistoryIdx].navApprox = points[lastHistoryIdx].navHistory;
+            // Płynne połączenie ostatniego punktu historii z linią aproksymacji
+            const lastHistIdx = points.findIndex(p => p.isProjection) - 1;
+            if (lastHistIdx >= 0) {
+                points[lastHistIdx].navApprox = points[lastHistIdx].navHistory;
             }
 
             return points;
         }
 
-        // 2. Tabela YTY (Year-to-Year)
+        // 2. Dwustronny Suwak (Dual Range Slider)
+        function updateDualSlider() {
+            const minInput = document.getElementById('slider-min');
+            const maxInput = document.getElementById('slider-max');
+            let minVal = parseFloat(minInput.value);
+            let maxVal = parseFloat(maxInput.value);
+
+            if (minVal >= maxVal - 2) {
+                minVal = maxVal - 2;
+                minInput.value = minVal;
+            }
+
+            const fill = document.getElementById('slider-range-fill');
+            const thumbMin = document.getElementById('thumb-min-ind');
+            const thumbMax = document.getElementById('thumb-max-ind');
+
+            fill.style.left = minVal + '%';
+            fill.style.width = (maxVal - minVal) + '%';
+            thumbMin.style.left = minVal + '%';
+            thumbMax.style.left = maxVal + '%';
+
+            if (!chartInstance || fullDailyPoints.length === 0) return;
+
+            const totalCount = fullDailyPoints.length - 1;
+            const startIdx = Math.floor((minVal / 100) * totalCount);
+            const endIdx = Math.floor((maxVal / 100) * totalCount);
+
+            const startDate = fullDailyPoints[startIdx].x;
+            const endDate = fullDailyPoints[endIdx].x;
+
+            document.getElementById('slider-start-label').innerText = startDate;
+            document.getElementById('slider-end-label').innerText = endDate;
+
+            chartInstance.options.scales.x.min = startDate;
+            chartInstance.options.scales.x.max = endDate;
+            chartInstance.update('none');
+        }
+
+        // 3. Tabela YTY
         function renderYTYTable() {
             const tbody = document.getElementById('yty-table-body');
             tbody.innerHTML = '';
@@ -301,7 +417,7 @@
             });
         }
 
-        // 3. Renderowanie Wykresu
+        // 4. Renderowanie Wykresu
         function renderChart() {
             fullDailyPoints = generateDailyData(currentScenario);
             const latestHistory = rawHistoryData[rawHistoryData.length - 1];
@@ -329,17 +445,17 @@
                             pointRadius: 0,
                             pointHoverRadius: 5,
                             fill: true,
-                            tension: 0.1
+                            tension: 0
                         },
                         {
-                            label: 'NAV Aproksymacja / Prognoza (PLN)',
+                            label: 'NAV Aproksymacja (PLN)',
                             data: fullDailyPoints.map(p => ({ x: p.x, y: p.navApprox })),
                             borderColor: '#10b981',
-                            borderDash: [5, 5],
+                            borderDash: [4, 4],
                             borderWidth: 2,
                             pointRadius: 0,
                             fill: false,
-                            tension: 0.1
+                            tension: 0
                         },
                         {
                             label: 'Skumulowana Inflacja GUS',
@@ -349,7 +465,7 @@
                             borderDash: [2, 2],
                             pointRadius: 0,
                             fill: false,
-                            tension: 0.1
+                            tension: 0
                         }
                     ]
                 },
@@ -378,19 +494,8 @@
                 }
             });
 
+            updateDualSlider();
             renderYTYTable();
-        }
-
-        // Suwak osi czasu
-        function handleSliderChange(val) {
-            if (!chartInstance || fullDailyPoints.length === 0) return;
-            const maxIdx = fullDailyPoints.length - 1;
-            const startIdx = Math.floor((val / 100) * (maxIdx - 100));
-            const startDateStr = fullDailyPoints[startIdx].x;
-
-            chartInstance.options.scales.x.min = startDateStr;
-            document.getElementById('slider-start-label').innerText = startDateStr;
-            chartInstance.update('none');
         }
 
         function updatePortfolioValuation(currentNav) {
@@ -412,19 +517,34 @@
         }
 
         function setTimeRange(range) {
-            if (!chartInstance) return;
-            const now = new Date(cutoffDate);
-            let minDate = new Date(2018, 0, 2);
+            if (!chartInstance || fullDailyPoints.length === 0) return;
+            const minInput = document.getElementById('slider-min');
+            const maxInput = document.getElementById('slider-max');
 
-            if (range === '1Y') {
-                minDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-            } else if (range === '3Y') {
-                minDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+            if (range === 'ALL') {
+                minInput.value = 0;
+                maxInput.value = 100;
+            } else {
+                const now = new Date(cutoffDate);
+                let minDate = new Date(2018, 0, 2);
+
+                if (range === '1Y') {
+                    minDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                } else if (range === '3Y') {
+                    minDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+                }
+
+                const startDateStr = minDate.toISOString().split('T')[0];
+                const totalCount = fullDailyPoints.length - 1;
+                const startIdx = fullDailyPoints.findIndex(p => p.x >= startDateStr);
+                
+                minInput.value = (startIdx / totalCount) * 100;
+                
+                const endIdx = fullDailyPoints.findIndex(p => p.x >= cutoffDate);
+                maxInput.value = (endIdx / totalCount) * 100;
             }
 
-            chartInstance.options.scales.x.min = minDate.toISOString().split('T')[0];
-            document.getElementById('slider-start-label').innerText = minDate.toISOString().split('T')[0];
-            chartInstance.update();
+            updateDualSlider();
         }
 
         document.getElementById('unit-input').addEventListener('input', () => {
