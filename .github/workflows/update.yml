@@ -2,18 +2,19 @@ name: Automatyczna aktualizacja wycen
 
 on:
   schedule:
-    - cron: '0 21 * * 5' # Każdy piątek o 21:00 UTC
-  workflow_dispatch: # Umożliwia też ręczne uruchomienie przyciskiem
+    # Od poniedziałku do piątku o godzinie 21:00 UTC (ok. 23:00 czasu polskiego)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch: # Umożliwia też ręczne uruchomienie w dowolnym momencie
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
     steps:
       - name: Pobranie kodu
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Konfiguracja Pythona
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
@@ -25,4 +26,4 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git add data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja wycen [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna codzienna aktualizacja wycen [skip ci]" && git push)
